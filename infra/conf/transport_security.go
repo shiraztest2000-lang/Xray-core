@@ -359,13 +359,11 @@ func (c *TLSConfig) Build() (proto.Message, error) {
 	config.RejectUnknownSni = c.RejectUnknownSNI
 	config.MasterKeyLog = c.MasterKeyLog
 
-	if c.AllowInsecure && (c.PinnedPeerCertSha256 != "" || c.VerifyPeerCertByName != "") {
-		return nil, errors.New(`"allowInsecure" cannot be combined with "pinnedPeerCertSha256" or "verifyPeerCertByName"`)
-	}
 	if c.AllowInsecure {
 		// Carry the legacy switch through the existing protobuf field without
 		// changing the wire schema. The TLS runtime consumes this private marker.
-		config.VerifyPeerCertByName = []string{tls.AllowInsecureMarker}
+		// Keep any explicit peer-name or certificate-pin checks alongside it.
+		config.VerifyPeerCertByName = append(config.VerifyPeerCertByName, tls.AllowInsecureMarker)
 	}
 	if c.PinnedPeerCertSha256 != "" {
 		for v := range strings.SplitSeq(c.PinnedPeerCertSha256, ",") {
