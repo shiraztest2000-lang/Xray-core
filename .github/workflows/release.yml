@@ -5,6 +5,8 @@ on:
   release:
     types: [published]
   push:
+    branches-ignore:
+      - 'publish/**'
   pull_request:
     types: [opened, synchronize, reopened]
 
