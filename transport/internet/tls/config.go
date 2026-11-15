@@ -26,7 +26,7 @@ var globalSessionCache = tls.NewLRUClientSessionCache(128)
 
 // AllowInsecureMarker transports the legacy allowInsecure option through the
 // existing protobuf field. It is never interpreted as a DNS name.
-const AllowInsecureMarker = "\\x00xray-allow-insecure"
+const AllowInsecureMarker = "\x00xray-allow-insecure"
 
 // ParseCertificate converts a cert.Certificate to Certificate.
 func ParseCertificate(c *cert.Certificate) *Certificate {

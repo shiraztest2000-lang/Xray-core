@@ -73,7 +73,7 @@ func TestAllowInsecure(t *testing.T) {
 	if !tlsConfig.InsecureSkipVerify {
 		t.Fatal("allowInsecure did not enable InsecureSkipVerify")
 	}
-	if err := tlsConfig.VerifyPeerCertificate([][]byte{ct.Certificate[0]}, nil); err != nil {
+	if err := tlsConfig.VerifyPeerCertificate([][]byte{ct.Certificate}, nil); err != nil {
 		t.Fatalf("allowInsecure unexpectedly rejected peer certificate: %v", err)
 	}
 }
