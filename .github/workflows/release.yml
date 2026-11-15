@@ -2,6 +2,12 @@ name: Build and Release
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Git tag to build and publish
+        required: false
+        default: v.03
+        type: string
   release:
     types: [published]
   push:
@@ -222,7 +228,7 @@ jobs:
             ./build_assets/*
 
       - name: Create ZIP archive
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           pushd build_assets || exit 1
@@ -242,7 +248,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./Xray-${{ env.ASSET_NAME }}.zip*
-          tag: ${{ github.ref }}
+          tag: ${{ inputs.release_tag || github.ref }}
           file_glob: true
 
   build-release-only:
