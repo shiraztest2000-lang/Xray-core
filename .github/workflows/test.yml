@@ -8,36 +8,47 @@ on:
 jobs:
   check-assets:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
+    permissions:
+      contents: read
     steps:
       - name: Restore Geodat Cache
         uses: actions/cache/restore@v6
         with:
           path: resources
-          key: xray-geodat-
-      - name: Check Assets Existence
-        id: check-assets
+          key: xray-geodat-${{ github.sha }}
+
+      - name: Download and Verify Geodata
+        shell: bash
         run: |
-          [ -d 'resources' ] || mkdir resources
-          LIST=('geoip.dat' 'geosite.dat')
-          for FILE_NAME in "${LIST[@]}"
-          do
-            echo -e "Checking ${FILE_NAME}..."
-            if [ -s "./resources/${FILE_NAME}" ]; then
-              echo -e "${FILE_NAME} exists."
-            else
-              echo -e "${FILE_NAME} does not exist."
-              echo "missing=true" >> $GITHUB_OUTPUT
-              break
+          set -euo pipefail
+          mkdir -p resources
+          declare -A files=(
+            [geoip.dat]="geoip/geoip-lite"
+            [geosite.dat]="geosite/geosite"
+          )
+          for file in "${!files[@]}"; do
+            source="${files[$file]}"
+            base="https://raw.githubusercontent.com/XTLS/Xray-rules-dat/release/${source}"
+            expected="$(curl --fail --silent --show-error --location "${base}.dat.sha256sum" | awk '{print $1}')"
+            test -n "$expected"
+            curl --fail --silent --show-error --location "${base}.dat" -o "resources/$file"
+            actual="$(sha256sum "resources/$file" | awk '{print $1}')"
+            if [ "$actual" != "$expected" ]; then
+              echo "SHA-256 verification failed for $file"
+              exit 1
             fi
+            test -s "resources/$file"
+            echo "Verified $file ($actual)"
           done
-      - name: Sleep for 90 seconds if Assets Missing
-        if: steps.check-assets.outputs.missing == 'true'
-        run: sleep 90
+
+      - name: Save Geodat Cache
+        uses: actions/cache/save@v6
+        with:
+          path: resources
+          key: xray-geodat-${{ github.sha }}
 
   check-format-and-proto:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     permissions:
       contents: read
     steps:
@@ -56,7 +67,6 @@ jobs:
 
   test:
     needs: check-assets
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     permissions:
       contents: read
     runs-on: ${{ matrix.os }}
@@ -72,11 +82,16 @@ jobs:
         with:
           go-version-file: go.mod
           check-latest: true
-      - name: Restore Geodat Cache
+      - name: Restore Verified Geodata Cache
         uses: actions/cache/restore@v6
         with:
           path: resources
-          key: xray-geodat-
+          key: xray-geodat-${{ github.sha }}
           enableCrossOsArchive: true
+      - name: Verify Geodata Cache
+        shell: bash
+        run: |
+          test -s resources/geoip.dat
+          test -s resources/geosite.dat
       - name: Test
         run: go test -timeout 1h -v ./...

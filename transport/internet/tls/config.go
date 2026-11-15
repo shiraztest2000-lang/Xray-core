@@ -24,6 +24,10 @@ import (
 
 var globalSessionCache = tls.NewLRUClientSessionCache(128)
 
+// AllowInsecureMarker transports the legacy allowInsecure option through the
+// existing protobuf field. It is never interpreted as a DNS name.
+const AllowInsecureMarker = "\x00xray-allow-insecure"
+
 // ParseCertificate converts a cert.Certificate to Certificate.
 func ParseCertificate(c *cert.Certificate) *Certificate {
 	if c != nil {
@@ -379,9 +383,20 @@ func (c *Config) GetTLSConfig(opts ...Option) *tls.Config {
 		}
 	}
 
+	allowInsecure := slices.Contains(c.VerifyPeerCertByName, AllowInsecureMarker)
+	verifyPeerCertByName := slices.Clone(c.VerifyPeerCertByName)
+	if allowInsecure {
+		verifyPeerCertByName = slices.DeleteFunc(verifyPeerCertByName, func(name string) bool {
+			return name == AllowInsecureMarker
+		})
+		if len(verifyPeerCertByName) == 0 {
+			verifyPeerCertByName = nil
+		}
+	}
+
 	randCarrier := &RandCarrier{
 		RootCAs:              root,
-		VerifyPeerCertByName: slices.Clone(c.VerifyPeerCertByName),
+		VerifyPeerCertByName: verifyPeerCertByName,
 		PinnedPeerCertSha256: c.PinnedPeerCertSha256,
 	}
 	config := &tls.Config{
@@ -393,7 +408,10 @@ func (c *Config) GetTLSConfig(opts ...Option) *tls.Config {
 		VerifyPeerCertificate:  randCarrier.verifyPeerCert,
 	}
 	randCarrier.Config = config
-	if len(c.VerifyPeerCertByName) > 0 {
+	if allowInsecure || len(verifyPeerCertByName) > 0 {
+		// allowInsecure intentionally disables standard certificate-chain and
+		// hostname verification. The callback remains installed, but with no
+		// custom pin/name checks it accepts the peer certificate.
 		config.InsecureSkipVerify = true
 	} else {
 		randCarrier.VerifyPeerCertByName = nil

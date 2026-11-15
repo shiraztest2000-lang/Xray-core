@@ -64,6 +64,26 @@ func TestExpiredCertificate(t *testing.T) {
 	}
 }
 
+func TestAllowInsecure(t *testing.T) {
+	ct, _ := cert.MustGenerate(nil)
+	c := &Config{VerifyPeerCertByName: []string{AllowInsecureMarker}}
+
+	tlsConfig := c.GetTLSConfig()
+	if !tlsConfig.InsecureSkipVerify {
+		t.Fatal("allowInsecure did not enable InsecureSkipVerify")
+	}
+	if err := tlsConfig.VerifyPeerCertificate([][]byte{ct.Certificate}, nil); err != nil {
+		t.Fatalf("allowInsecure unexpectedly rejected peer certificate: %v", err)
+	}
+}
+
+func TestAllowInsecureDisabledByDefault(t *testing.T) {
+	tlsConfig := (&Config{}).GetTLSConfig()
+	if tlsConfig.InsecureSkipVerify {
+		t.Fatal("InsecureSkipVerify must remain disabled by default")
+	}
+}
+
 func TestInsecureCertificates(t *testing.T) {
 	c := &Config{}
 

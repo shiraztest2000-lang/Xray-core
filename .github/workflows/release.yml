@@ -8,6 +8,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   check-assets:
     runs-on: ubuntu-latest

@@ -360,7 +360,10 @@ func (c *TLSConfig) Build() (proto.Message, error) {
 	config.MasterKeyLog = c.MasterKeyLog
 
 	if c.AllowInsecure {
-		return nil, errors.PrintRemovedFeatureError(`"allowInsecure"`, `"pinnedPeerCertSha256"(pcs) and "verifyPeerCertByName"(vcn)`)
+		// Carry the legacy switch through the existing protobuf field without
+		// changing the wire schema. The TLS runtime consumes this private marker.
+		// Keep any explicit peer-name or certificate-pin checks alongside it.
+		config.VerifyPeerCertByName = append(config.VerifyPeerCertByName, tls.AllowInsecureMarker)
 	}
 	if c.PinnedPeerCertSha256 != "" {
 		for v := range strings.SplitSeq(c.PinnedPeerCertSha256, ",") {
