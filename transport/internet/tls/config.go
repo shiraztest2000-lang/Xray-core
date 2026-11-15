@@ -389,6 +389,9 @@ func (c *Config) GetTLSConfig(opts ...Option) *tls.Config {
 		verifyPeerCertByName = slices.DeleteFunc(verifyPeerCertByName, func(name string) bool {
 			return name == AllowInsecureMarker
 		})
+		if len(verifyPeerCertByName) == 0 {
+			verifyPeerCertByName = nil
+		}
 	}
 
 	randCarrier := &RandCarrier{
