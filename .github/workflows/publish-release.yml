@@ -24,7 +24,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const tag = context.payload.inputs?.release_tag || context.refName.replace(/^publish\\//, '');
+            const tag = context.payload.inputs?.release_tag || (context.refName.startsWith('publish/') ? context.refName.slice('publish/'.length) : context.refName);
             const ref = `refs/tags/${tag}`;
             try {
               await github.rest.git.getRef({ owner: context.repo.owner, repo: context.repo.repo, ref: `tags/${tag}` });
