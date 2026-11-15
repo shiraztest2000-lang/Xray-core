@@ -64,7 +64,6 @@ func TestExpiredCertificate(t *testing.T) {
 	}
 }
 
-
 func TestAllowInsecure(t *testing.T) {
 	ct, _ := cert.MustGenerate(nil)
 	c := &Config{VerifyPeerCertByName: []string{AllowInsecureMarker}}
