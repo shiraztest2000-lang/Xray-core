@@ -1,0 +1,49 @@
+name: Publish Release Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Git tag to publish
+        required: true
+        default: v.03
+        type: string
+  push:
+    branches:
+      - 'publish/**'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create tag and GitHub Release
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = context.payload.inputs?.release_tag || context.refName.replace(/^publish\\//, '');
+            const ref = `refs/tags/${tag}`;
+            try {
+              await github.rest.git.getRef({ owner: context.repo.owner, repo: context.repo.repo, ref: `tags/${tag}` });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.git.createRef({ owner: context.repo.owner, repo: context.repo.repo, ref, sha: context.sha });
+            }
+            try {
+              await github.rest.repos.getReleaseByTag({ owner: context.repo.owner, repo: context.repo.repo, tag });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                target_commitish: 'main',
+                name: `Xray-core ${tag}`,
+                body: 'Release tag for the patched Xray-core fork used by AndroidLibXrayLite and v2rayNG.',
+                draft: false,
+                prerelease: false
+              });
+            }
