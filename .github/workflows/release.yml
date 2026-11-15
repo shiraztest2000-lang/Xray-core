@@ -59,6 +59,7 @@ jobs:
           done
 
       - name: Trigger Asset Update Workflow if Assets Missing
+        continue-on-error: true
         if: steps.check-assets.outputs.missing == 'true'
         uses: actions/github-script@v9
         with:
@@ -185,19 +186,25 @@ jobs:
 
       - name: Add additional assets into package
         run: |
-          mv -f resources/geo* build_assets/
-          if [[ ${GOOS} == 'windows' ]]; then
-            cp .github/build/windows/* build_assets/
+          shopt -s nullglob
+          GEO_FILES=(resources/geo*.dat)
+          if (( ${#GEO_FILES[@]} > 0 )); then
+            mv -f "${GEO_FILES[@]}" build_assets/
+          else
+            echo "GeoIP/GeoSite data unavailable; continuing with the Xray binaries."
           fi
           if [[ ${GOOS} == 'windows' ]]; then
-            echo 'Adding Wintun into packages'
-            if [[ ${GOARCH} == 'amd64' ]]; then
+            cp .github/build/windows/* build_assets/
+            echo 'Adding Wintun into packages when available'
+            if [[ ${GOARCH} == 'amd64' && -s resources/wintun/bin/amd64/wintun.dll ]]; then
               mv resources/wintun/bin/amd64/wintun.dll build_assets/
             fi
-            if [[ ${GOARCH} == 'arm64' ]]; then
+            if [[ ${GOARCH} == 'arm64' && -s resources/wintun/bin/arm64/wintun.dll ]]; then
               mv resources/wintun/bin/arm64/wintun.dll build_assets/
             fi
-            mv resources/wintun/LICENSE.txt build_assets/LICENSE-Wintun
+            if [[ -s resources/wintun/LICENSE.txt ]]; then
+              mv resources/wintun/LICENSE.txt build_assets/LICENSE-Wintun
+            fi
           fi
 
       - name: Copy README.md & LICENSE
